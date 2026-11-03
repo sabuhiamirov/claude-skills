@@ -1,0 +1,10 @@
+{
+  "name": "apk-sign",
+  "version": "1.0.0",
+  "description": "Sign or re-sign Android APKs with any keystore (jks, p12, pk8 + pem), verify, and install with adb. macOS, Linux and Windows.",
+  "author": {
+    "name": "Sabuhi Amirov"
+  },
+  "license": "MIT",
+  "keywords": ["android", "apk", "apksigner", "zipalign", "signing", "adb"]
+}

@@ -1,0 +1,10 @@
+{
+  "name": "app-icon-generator",
+  "version": "1.0.0",
+  "description": "Preview and position your app icon on iOS and Android home screens, then generate AppIcon.appiconset, Android mipmaps and adaptive icons, and install them into your project.",
+  "author": {
+    "name": "Sabuhi Amirov"
+  },
+  "license": "MIT",
+  "keywords": ["app-icon", "icon-generator", "ios", "android", "adaptive-icon", "appiconset", "mipmap", "flutter", "react-native", "expo", "launcher-icon"]
+}

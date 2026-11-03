@@ -1,0 +1,22 @@
+# Never commit signing keys, passwords or APKs
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pk8
+*.pem
+*.crt
+*.pass
+*.password
+*.apk
+*.idsig
+*.aab
+
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# app-icon-generator output
+*-icons.zip
+icon-editor.html

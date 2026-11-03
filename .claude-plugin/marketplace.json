@@ -1,0 +1,21 @@
+{
+  "name": "sabuhiamirov",
+  "owner": {
+    "name": "Sabuhi Amirov"
+  },
+  "metadata": {
+    "description": "Claude Code skills for mobile app developers: sign Android APKs and generate iOS / Android app icons."
+  },
+  "plugins": [
+    {
+      "name": "apk-sign",
+      "source": "./plugins/apk-sign",
+      "description": "Sign or re-sign Android APKs with any keystore, verify, and install with adb."
+    },
+    {
+      "name": "app-icon-generator",
+      "source": "./plugins/app-icon-generator",
+      "description": "Live iOS/Android home-screen preview, adaptive icon safe zone, every icon size in one ZIP, installed into your project."
+    }
+  ]
+}

@@ -1,0 +1,511 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>App Icon Generator</title>
+<style>
+/* Layout: two editors (iOS, Android) side by side; each drives its own phone mock-ups and size strip below. */
+:root {
+  --bg: #F4F5FA; --surface: #FFFFFF; --ink: #1A1C2B; --muted: #5C6075; --line: #DDE0EC;
+  --primary: #3554D1; --primary-soft: #E8ECFC; --on-primary: #FFFFFF; --warn: #9A3412;
+  --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #13141C; --surface: #1D1F2A; --ink: #EEF0F8; --muted: #A9ADC2; --line: #333749;
+  --primary: #8EA2FF; --primary-soft: #262B45; --on-primary: #13141C; --warn: #FFB48A; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #13141C; --surface: #1D1F2A; --ink: #EEF0F8; --muted: #A9ADC2; --line: #333749;
+  --primary: #8EA2FF; --primary-soft: #262B45; --on-primary: #13141C; --warn: #FFB48A; color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font); padding: 32px 16px 64px; }
+main { max-width: 1080px; margin: 0 auto; display: flex; flex-direction: column; gap: 36px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font-size: 30px; font-weight: 800; }
+h2 { font-size: 21px; font-weight: 800; }
+h3 { font-size: 13px; font-weight: 800; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+p { margin: 0; max-width: 70ch; }
+.lead { color: var(--muted); font-size: 16px; }
+section { display: flex; flex-direction: column; gap: 14px; }
+#app { display: flex; flex-direction: column; gap: 36px; }
+[hidden] { display: none !important; }
+
+.source { background: var(--surface); border: 1.5px dashed var(--line); border-radius: 18px; padding: 16px 18px; display: flex; flex-wrap: wrap; gap: 14px 22px; align-items: center; }
+.source.drag { border-color: var(--primary); background: var(--primary-soft); }
+.source label { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 700; }
+.source input[type="text"] { font: inherit; font-weight: 600; padding: 6px 10px; border-radius: 8px; border: 1.5px solid var(--line); background: var(--bg); color: var(--ink); width: 160px; }
+.source input[type="color"] { width: 34px; height: 28px; padding: 0; border: 1.5px solid var(--line); border-radius: 6px; background: none; }
+.warn { color: var(--warn); font-size: 13px; font-weight: 700; }
+
+.editors { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+.editor { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+.stage { position: relative; width: 100%; max-width: 320px; aspect-ratio: 1; margin: 0 auto; touch-action: none; cursor: grab; user-select: none; }
+.stage:active { cursor: grabbing; }
+.stage canvas { width: 100%; height: 100%; display: block; }
+.stage.ios canvas { border-radius: 22.5%; }
+.stage .overlay { position: absolute; inset: 0; pointer-events: none; }
+.stage.android { overflow: hidden; border-radius: 10px; }
+/* Android adaptive icon: 108dp layer, only the inner 66dp circle is guaranteed visible on every launcher. */
+.stage.android .overlay::after { content: ""; position: absolute; inset: 19.44%; border-radius: 50%; box-shadow: 0 0 0 999px rgba(10, 8, 20, .6); outline: 2px dashed rgba(255,255,255,.8); }
+.stage.android .overlay::before { content: ""; position: absolute; inset: 16.67%; border: 1px solid rgba(255,255,255,.35); border-radius: 12%; z-index: 1; }
+.stage.ios .overlay::after { content: ""; position: absolute; inset: 0; border-radius: 22.5%; box-shadow: inset 0 0 0 1px rgba(0,0,0,.08); }
+.controls { display: flex; flex-direction: column; gap: 10px; }
+.ctl { display: grid; grid-template-columns: 82px minmax(0, 1fr) 52px; gap: 10px; align-items: center; font-size: 14px; font-weight: 700; }
+.ctl output { font-variant-numeric: tabular-nums; color: var(--muted); text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--primary); }
+.btns { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button { font: inherit; font-weight: 800; font-size: 14px; border-radius: 10px; padding: 8px 14px; cursor: pointer; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+button:hover { border-color: var(--primary); }
+button.primary { background: var(--primary); border-color: var(--primary); color: var(--on-primary); }
+button:disabled { opacity: .5; cursor: progress; }
+button:focus-visible, input:focus-visible, .stage:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+.params { font: 600 13px/1.4 ui-monospace, Menlo, monospace; background: var(--primary-soft); color: var(--ink); border-radius: 10px; padding: 8px 12px; overflow-x: auto; white-space: nowrap; }
+.hint { font-size: 13px; color: var(--muted); }
+
+.row { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.fig { display: flex; flex-direction: column; gap: 8px; align-items: center; min-width: 0; }
+.cap { font-size: 13px; color: var(--muted); text-align: center; max-width: 30ch; }
+.phone { width: 245px; max-width: 100%; border-radius: 36px; padding: 44px 18px 28px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 8px; border: 6px solid #0E0C16; }
+.phone.wall-light { background: linear-gradient(160deg, #C9D6FF, #E2E2E2 55%, #F5D0C5); }
+.phone.wall-dark { background: linear-gradient(160deg, #0F2027, #203A43 55%, #2C5364); }
+.app { display: flex; flex-direction: column; align-items: center; gap: 5px; min-width: 0; }
+.app span { font: 600 10.5px/1.2 -apple-system, Roboto, system-ui, sans-serif; color: #FFFFFF; text-shadow: 0 1px 2px rgba(0,0,0,.45); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.wall-light .app span { color: #1B1B1F; text-shadow: none; }
+.ic { width: 50px; height: 50px; background-position: center; background-size: cover; background-repeat: no-repeat; }
+.ic.ios { border-radius: 22.5%; }
+/* Android previews show the 108dp layer zoomed so the 72dp viewport fills the mask. */
+.ic.circle { border-radius: 50%; background-size: 150%; }
+.ic.squircle { border-radius: 32%; background-size: 150%; }
+.ic.dummy { background-color: rgba(255,255,255,.55); }
+.wall-dark .ic.dummy { background-color: rgba(255,255,255,.18); }
+.sizes { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-end; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.empty { padding: 40px 0; text-align: center; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <header style="display:flex;flex-direction:column;gap:8px">
+    <h1>App icon generator</h1>
+    <p class="lead">Drag the artwork and change its size. iOS and Android are tuned separately and the phones below update live. When it looks right, download every icon size as one ZIP.</p>
+  </header>
+
+  <div class="source" id="source">
+    <label>Image <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/svg+xml"></label>
+    <label>App name <input type="text" id="app-name" maxlength="24"></label>
+    <label>Fill <input type="color" id="fill-top" aria-label="Fill colour, top"><input type="color" id="fill-bottom" aria-label="Fill colour, bottom"></label>
+    <button type="button" id="fill-auto">Sample fill from image</button>
+    <span class="warn" id="src-warn"></span>
+  </div>
+
+  <div id="app" hidden>
+    <section>
+      <h2>Edit</h2>
+      <div class="editors">
+        <div class="editor" id="ed-ios">
+          <h3>iOS</h3>
+          <div class="stage ios" tabindex="0" aria-label="iOS icon: drag to move"><canvas width="512" height="512"></canvas><div class="overlay"></div></div>
+          <div class="controls">
+            <label class="ctl" for="ios-zoom">Size <input type="range" id="ios-zoom" min="40" max="160" step="1"><output></output></label>
+            <label class="ctl" for="ios-x">Left-right <input type="range" id="ios-x" min="-50" max="50" step="1"><output></output></label>
+            <label class="ctl" for="ios-y">Up-down <input type="range" id="ios-y" min="-50" max="50" step="1"><output></output></label>
+          </div>
+          <div class="btns"><button type="button" data-reset>Reset</button><button type="button" data-copy-from="android">Copy from Android</button></div>
+          <div class="params" aria-live="polite"></div>
+        </div>
+        <div class="editor" id="ed-android">
+          <h3>Android</h3>
+          <div class="stage android" tabindex="0" aria-label="Android icon: drag to move"><canvas width="512" height="512"></canvas><div class="overlay"></div></div>
+          <div class="controls">
+            <label class="ctl" for="android-zoom">Size <input type="range" id="android-zoom" min="40" max="160" step="1"><output></output></label>
+            <label class="ctl" for="android-x">Left-right <input type="range" id="android-x" min="-50" max="50" step="1"><output></output></label>
+            <label class="ctl" for="android-y">Up-down <input type="range" id="android-y" min="-50" max="50" step="1"><output></output></label>
+          </div>
+          <div class="btns"><button type="button" data-reset>Reset</button><button type="button" data-copy-from="ios">Copy from iOS</button></div>
+          <div class="params" aria-live="polite"></div>
+        </div>
+      </div>
+      <p class="hint">Android: only the inside of the dashed circle is visible on every phone. The faint square is what legacy launchers and the Play Store show. Scroll on an icon to resize, arrow keys to nudge.</p>
+      <div class="btns">
+        <button type="button" class="primary" id="download">Download icons (.zip)</button>
+        <button type="button" id="copy-all">Copy settings</button>
+        <span class="hint" id="status"></span>
+      </div>
+    </section>
+
+    <section>
+      <h2>Home screens</h2>
+      <div class="row">
+        <div class="fig"><div class="phone wall-light" id="ios-light"></div><div class="cap">iOS, light wallpaper</div></div>
+        <div class="fig"><div class="phone wall-dark" id="ios-dark"></div><div class="cap">iOS, dark wallpaper</div></div>
+        <div class="fig"><div class="phone wall-dark" id="and-circle"></div><div class="cap">Android Pixel: circle</div></div>
+        <div class="fig"><div class="phone wall-light" id="and-squircle"></div><div class="cap">Android Samsung: squircle</div></div>
+      </div>
+    </section>
+
+    <section>
+      <h2>Small sizes</h2>
+      <p>iOS on the left, Android on the right at each size.</p>
+      <div class="sizes" id="sizes"></div>
+    </section>
+  </div>
+  <p class="empty" id="empty">Choose or drop a square image (1024×1024 PNG works best).</p>
+</main>
+
+<script>
+// make_editor.py replaces these two strings; the page also works without them (pick a file).
+const EMBEDDED_SRC = "__ICON_SRC__";
+const EMBEDDED_NAME = "__APP_NAME__";
+
+// Every file:// page shares one origin, so key saved settings by app name.
+const STORE = 'app-icon-generator:' + EMBEDDED_NAME;
+const DEFAULTS = { ios: { zoom: 100, x: 0, y: 0 }, android: { zoom: 100, x: 0, y: 0 } };
+let state = { ...JSON.parse(JSON.stringify(DEFAULTS)), name: EMBEDDED_NAME.startsWith('__') ? 'My App' : EMBEDDED_NAME, fill: null };
+try { const saved = JSON.parse(localStorage.getItem(STORE) || 'null'); if (saved && saved.ios && saved.android) state = { ...state, ...saved, name: state.name }; } catch (e) {}
+const save = () => { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} };
+const $ = (id) => document.getElementById(id);
+
+let img = null;
+let crop = { sx: 0, sy: 0, s: 1 };
+
+// Average of one edge row, weighted by alpha so transparent pixels don't pull it to black.
+function sampleEdges() {
+  const c = document.createElement('canvas');
+  c.width = c.height = 64;
+  const g = c.getContext('2d');
+  g.drawImage(img, crop.sx, crop.sy, crop.s, crop.s, 0, 0, 64, 64);
+  const avg = (y) => {
+    const d = g.getImageData(0, y, 64, 1).data;
+    let r = 0, gg = 0, b = 0, a = 0;
+    for (let i = 0; i < d.length; i += 4) { const w = d[i + 3]; r += d[i] * w; gg += d[i + 1] * w; b += d[i + 2] * w; a += w; }
+    if (a < 64 * 255 * 0.2) return '#ffffff';
+    const hex = (v) => Math.round(v / a).toString(16).padStart(2, '0');
+    return '#' + hex(r) + hex(gg) + hex(b);
+  };
+  return { top: avg(0), bottom: avg(63) };
+}
+
+// Draws one platform's full icon layer: gradient fill, then the artwork scaled and moved.
+// x / y are percent of the icon size; zoom is percent of the original size.
+function renderTo(canvas, p) {
+  const s = canvas.width;
+  const g = canvas.getContext('2d');
+  g.imageSmoothingQuality = 'high';
+  const fill = g.createLinearGradient(0, 0, 0, s);
+  fill.addColorStop(0, state.fill.top); fill.addColorStop(1, state.fill.bottom);
+  g.fillStyle = fill; g.fillRect(0, 0, s, s);
+  const w = s * p.zoom / 100;
+  const left = (s - w) / 2 + s * p.x / 100;
+  const top = (s - w) / 2 + s * p.y / 100;
+  if (left > 0 || top > 0 || left + w < s || top + w < s) {
+    // Feather the artwork's edges so it melts into the fill.
+    const off = document.createElement('canvas');
+    off.width = off.height = s;
+    const o = off.getContext('2d');
+    o.imageSmoothingQuality = 'high';
+    o.drawImage(img, crop.sx, crop.sy, crop.s, crop.s, left, top, w, w);
+    o.globalCompositeOperation = 'destination-in';
+    const f = Math.max(s / 64, w * 0.08);
+    const mask = document.createElement('canvas');
+    mask.width = mask.height = s;
+    const m = mask.getContext('2d');
+    m.filter = `blur(${f / 2}px)`;
+    m.fillStyle = '#000';
+    m.fillRect(left + f / 2, top + f / 2, w - f, w - f);
+    o.drawImage(mask, 0, 0);
+    g.drawImage(off, 0, 0);
+  } else {
+    g.drawImage(img, crop.sx, crop.sy, crop.s, crop.s, left, top, w, w);
+  }
+}
+
+const editors = {};
+function update(platform) {
+  const ed = editors[platform];
+  const p = state[platform];
+  ed.zoom.value = p.zoom; ed.x.value = p.x; ed.y.value = p.y;
+  ed.zoom.nextElementSibling.textContent = p.zoom + '%';
+  ed.x.nextElementSibling.textContent = p.x;
+  ed.y.nextElementSibling.textContent = p.y;
+  renderTo(ed.canvas, p);
+  ed.params.textContent = `${platform}: zoom ${p.zoom}% · x ${p.x} · y ${p.y}`;
+  const big = document.createElement('canvas');
+  big.width = big.height = 256;
+  renderTo(big, p);
+  const url = big.toDataURL('image/png');
+  for (const n of document.querySelectorAll(`[data-icon="${platform}"]`)) n.style.backgroundImage = `url(${url})`;
+  save();
+}
+const updateAll = () => { update('ios'); update('android'); };
+
+function setupEditor(platform) {
+  const root = $('ed-' + platform);
+  const ed = {
+    canvas: root.querySelector('canvas'), stage: root.querySelector('.stage'), params: root.querySelector('.params'),
+    zoom: $(platform + '-zoom'), x: $(platform + '-x'), y: $(platform + '-y'),
+  };
+  editors[platform] = ed;
+  for (const k of ['zoom', 'x', 'y']) ed[k].addEventListener('input', () => { state[platform][k] = Number(ed[k].value); update(platform); });
+  root.querySelector('[data-reset]').addEventListener('click', () => { state[platform] = { ...DEFAULTS[platform] }; update(platform); });
+  root.querySelector('[data-copy-from]').addEventListener('click', (e) => { state[platform] = { ...state[e.currentTarget.dataset.copyFrom] }; update(platform); });
+  const clamp = (v) => Math.max(-50, Math.min(50, Math.round(v)));
+  let drag = null;
+  ed.stage.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, sx: state[platform].x, sy: state[platform].y }; ed.stage.setPointerCapture(e.pointerId); });
+  ed.stage.addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const size = ed.stage.getBoundingClientRect().width;
+    state[platform].x = clamp(drag.sx + (e.clientX - drag.x) / size * 100);
+    state[platform].y = clamp(drag.sy + (e.clientY - drag.y) / size * 100);
+    update(platform);
+  });
+  const end = () => { drag = null; };
+  ed.stage.addEventListener('pointerup', end);
+  ed.stage.addEventListener('pointercancel', end);
+  ed.stage.addEventListener('wheel', (e) => { e.preventDefault(); state[platform].zoom = Math.max(40, Math.min(160, state[platform].zoom + (e.deltaY < 0 ? 2 : -2))); update(platform); }, { passive: false });
+  ed.stage.addEventListener('keydown', (e) => {
+    const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!step) return;
+    e.preventDefault();
+    state[platform].x = clamp(state[platform].x + step[0]);
+    state[platform].y = clamp(state[platform].y + step[1]);
+    update(platform);
+  });
+}
+
+const dummyNames = ['Photos', 'Mail', 'Maps', 'Music', 'Notes', 'Clock', 'Weather', 'Camera', 'Files', 'Health', 'Wallet'];
+function fillPhone(id, shape, platform, mineAt) {
+  const phone = $(id);
+  for (let i = 0; i < 16; i++) {
+    const app = document.createElement('div');
+    app.className = 'app';
+    const ic = document.createElement('div');
+    const label = document.createElement('span');
+    if (i === mineAt) { ic.className = 'ic ' + shape; ic.dataset.icon = platform; label.dataset.appName = ''; label.textContent = state.name; }
+    else { ic.className = 'ic dummy ' + shape; label.textContent = dummyNames[i % dummyNames.length]; }
+    app.append(ic, label);
+    phone.append(app);
+  }
+}
+
+let built = false;
+function build() {
+  fillPhone('ios-light', 'ios', 'ios', 5);
+  fillPhone('ios-dark', 'ios', 'ios', 5);
+  fillPhone('and-circle', 'circle', 'android', 5);
+  fillPhone('and-squircle', 'squircle', 'android', 5);
+  const sizes = $('sizes');
+  for (const [px, label] of [[120, 'Home screen (large)'], [60, 'Home screen'], [40, 'Spotlight'], [29, 'Settings'], [20, 'Notification']]) {
+    const fig = document.createElement('div');
+    fig.className = 'fig';
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:10px;align-items:flex-end';
+    const a = document.createElement('div');
+    a.className = 'ic ios'; a.dataset.icon = 'ios'; a.style.width = a.style.height = px + 'px';
+    const b = document.createElement('div');
+    b.className = 'ic circle'; b.dataset.icon = 'android'; b.style.width = b.style.height = px + 'px';
+    row.append(a, b);
+    const cap = document.createElement('div');
+    cap.className = 'cap';
+    cap.textContent = `${px} px · ${label}`;
+    fig.append(row, cap);
+    sizes.append(fig);
+  }
+  setupEditor('ios');
+  setupEditor('android');
+  built = true;
+}
+
+function loadImage(src, resetFill) {
+  const next = new Image();
+  next.onload = () => {
+    img = next;
+    const w = img.naturalWidth || 1024, h = img.naturalHeight || 1024;
+    const s = Math.min(w, h);
+    crop = { sx: (w - s) / 2, sy: (h - s) / 2, s };
+    const warn = [];
+    if (w !== h) warn.push(`Not square (${w}×${h}), the centre is used.`);
+    if (s < 1024 && !src.startsWith('data:image/svg')) warn.push(`Only ${s}px, 1024px is recommended for the App Store icon.`);
+    $('src-warn').textContent = warn.join(' ');
+    if (resetFill || !state.fill) state.fill = sampleEdges();
+    $('fill-top').value = state.fill.top; $('fill-bottom').value = state.fill.bottom;
+    if (!built) build();
+    $('app').hidden = false; $('empty').hidden = true;
+    updateAll();
+  };
+  next.onerror = () => { $('src-warn').textContent = 'This file could not be read as an image.'; };
+  next.src = src;
+}
+
+function readFile(file) {
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => loadImage(r.result, true);
+  r.readAsDataURL(file);
+}
+$('file').addEventListener('change', (e) => readFile(e.target.files[0]));
+const source = $('source');
+for (const ev of ['dragenter', 'dragover']) document.addEventListener(ev, (e) => { e.preventDefault(); source.classList.add('drag'); });
+for (const ev of ['dragleave', 'drop']) document.addEventListener(ev, (e) => { e.preventDefault(); source.classList.remove('drag'); });
+document.addEventListener('drop', (e) => readFile(e.dataTransfer.files[0]));
+
+$('app-name').value = state.name;
+$('app-name').addEventListener('input', (e) => {
+  state.name = e.target.value || 'My App';
+  for (const n of document.querySelectorAll('[data-app-name]')) n.textContent = state.name;
+  save();
+});
+for (const k of ['top', 'bottom']) $('fill-' + k).addEventListener('input', (e) => { state.fill[k] = e.target.value; if (img) updateAll(); });
+$('fill-auto').addEventListener('click', () => { if (!img) return; state.fill = sampleEdges(); $('fill-top').value = state.fill.top; $('fill-bottom').value = state.fill.bottom; updateAll(); });
+
+const settingsJSON = () => JSON.stringify({ ios: state.ios, android: state.android, fill: state.fill }, null, 2);
+$('copy-all').addEventListener('click', () => {
+  const text = settingsJSON();
+  navigator.clipboard.writeText(text).then(() => { $('status').textContent = 'Settings copied.'; }, () => { $('status').textContent = text.replace(/\s+/g, ' '); });
+});
+
+// ---------- Export: PNG (RGB/RGBA, no alpha for iOS) + store-only ZIP, no libraries ----------
+
+const CRC_TABLE = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+function crc32(...parts) { let c = 0xFFFFFFFF; for (const p of parts) for (let i = 0; i < p.length; i++) c = CRC_TABLE[(c ^ p[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+const u32 = (v) => new Uint8Array([v >>> 24, (v >>> 16) & 255, (v >>> 8) & 255, v & 255]);
+const enc = new TextEncoder();
+function concat(parts) { const n = parts.reduce((a, p) => a + p.length, 0); const out = new Uint8Array(n); let o = 0; for (const p of parts) { out.set(p, o); o += p.length; } return out; }
+
+async function deflate(bytes) {
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
+// App Store Connect rejects icons that carry an alpha channel, and canvas.toBlob always writes one,
+// so we encode the PNG ourselves: colour type 2 (RGB) unless alpha is needed.
+async function encodePNG(canvas, alpha = false) {
+  const w = canvas.width, h = canvas.height;
+  const d = canvas.getContext('2d').getImageData(0, 0, w, h).data;
+  const bpp = alpha ? 4 : 3, stride = w * bpp;
+  const raw = new Uint8Array((stride + 1) * h);
+  const line = new Uint8Array(stride);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4, j = x * bpp;
+      line[j] = d[i]; line[j + 1] = d[i + 1]; line[j + 2] = d[i + 2];
+      if (alpha) line[j + 3] = d[i + 3];
+    }
+    const o = y * (stride + 1);
+    raw[o] = 1; // "Sub" filter
+    for (let j = 0; j < stride; j++) raw[o + 1 + j] = (line[j] - (j >= bpp ? line[j - bpp] : 0)) & 255;
+  }
+  const chunk = (type, data) => { const t = enc.encode(type); return concat([u32(data.length), t, data, u32(crc32(t, data))]); };
+  const ihdr = concat([u32(w), u32(h), new Uint8Array([8, alpha ? 6 : 2, 0, 0, 0])]);
+  return concat([new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10]), chunk('IHDR', ihdr), chunk('IDAT', await deflate(raw)), chunk('IEND', new Uint8Array())]);
+}
+
+function makeZip(files) {
+  const locals = [], centrals = [];
+  let offset = 0;
+  const le16 = (v) => new Uint8Array([v & 255, v >>> 8]);
+  const le32 = (v) => new Uint8Array([v & 255, (v >>> 8) & 255, (v >>> 16) & 255, v >>> 24]);
+  const time = le16(0), date = le16((2024 - 1980) << 9 | 1 << 5 | 1);
+  for (const f of files) {
+    const name = enc.encode(f.name), crc = crc32(f.data), size = le32(f.data.length);
+    const common = [le16(20), le16(0), le16(0), time, date, le32(crc), size, size, le16(name.length), le16(0)];
+    const local = concat([le32(0x04034b50), ...common, name, f.data]);
+    centrals.push(concat([le32(0x02014b50), le16(20), ...common, le16(0), le16(0), le16(0), le32(0), le32(offset), name]));
+    locals.push(local);
+    offset += local.length;
+  }
+  const cd = concat(centrals);
+  const end = concat([le32(0x06054b50), le16(0), le16(0), le16(files.length), le16(files.length), le32(cd.length), le32(offset), le16(0)]);
+  return new Blob([...locals, cd, end], { type: 'application/zip' });
+}
+
+function canvasOf(size) { const c = document.createElement('canvas'); c.width = c.height = size; return c; }
+
+// Halve repeatedly before the final step: one big drawImage jump aliases badly at 20-40 px.
+function resize(src, size) {
+  let cur = src;
+  while (cur.width / 2 >= size) { const n = canvasOf(Math.round(cur.width / 2)); const g = n.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, n.width, n.height); cur = n; }
+  if (cur.width === size) return cur;
+  const out = canvasOf(size); const g = out.getContext('2d'); g.imageSmoothingQuality = 'high'; g.drawImage(cur, 0, 0, size, size);
+  return out;
+}
+
+const IOS_ICONS = [
+  ['iphone', 20, 2], ['iphone', 20, 3], ['iphone', 29, 1], ['iphone', 29, 2], ['iphone', 29, 3], ['iphone', 40, 2], ['iphone', 40, 3], ['iphone', 60, 2], ['iphone', 60, 3],
+  ['ipad', 20, 1], ['ipad', 20, 2], ['ipad', 29, 1], ['ipad', 29, 2], ['ipad', 40, 1], ['ipad', 40, 2], ['ipad', 76, 1], ['ipad', 76, 2], ['ipad', 83.5, 2],
+  ['ios-marketing', 1024, 1],
+];
+const DENSITIES = [['mdpi', 1], ['hdpi', 1.5], ['xhdpi', 2], ['xxhdpi', 3], ['xxxhdpi', 4]];
+
+async function buildFiles() {
+  const files = [];
+  const add = (name, data) => files.push({ name, data: typeof data === 'string' ? enc.encode(data) : data });
+
+  // iOS: one 1024 master, every size downscaled from it, all RGB.
+  const ios = canvasOf(1024); renderTo(ios, state.ios);
+  const images = [], done = new Set();
+  for (const [idiom, pt, scale] of IOS_ICONS) {
+    const px = Math.round(pt * scale);
+    const filename = `Icon-App-${pt}x${pt}@${scale}x.png`;
+    images.push({ size: `${pt}x${pt}`, idiom, filename, scale: `${scale}x` });
+    if (!done.has(filename)) { done.add(filename); add(`ios/AppIcon.appiconset/${filename}`, await encodePNG(resize(ios, px))); }
+  }
+  add('ios/AppIcon.appiconset/Contents.json', JSON.stringify({ images, info: { version: 1, author: 'xcode' } }, null, 2) + '\n');
+
+  // Android: the master is the 108dp adaptive layer; legacy icons are its visible 72dp centre.
+  const layer = canvasOf(1536); renderTo(layer, state.android);
+  const legacy = canvasOf(1024); legacy.getContext('2d').drawImage(layer, 256, 256, 1024, 1024, 0, 0, 1024, 1024);
+  const round = canvasOf(1024);
+  { const g = round.getContext('2d'); g.beginPath(); g.arc(512, 512, 512, 0, Math.PI * 2); g.clip(); g.drawImage(legacy, 0, 0); }
+  for (const [dir, k] of DENSITIES) {
+    add(`android/res/mipmap-${dir}/ic_launcher.png`, await encodePNG(resize(legacy, 48 * k)));
+    add(`android/res/mipmap-${dir}/ic_launcher_round.png`, await encodePNG(resize(round, 48 * k), true));
+    add(`android/res/mipmap-${dir}/ic_launcher_foreground.png`, await encodePNG(resize(layer, 108 * k)));
+  }
+  const adaptive = '<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/ic_launcher_background"/>\n    <foreground android:drawable="@mipmap/ic_launcher_foreground"/>\n</adaptive-icon>\n';
+  add('android/res/mipmap-anydpi-v26/ic_launcher.xml', adaptive);
+  add('android/res/mipmap-anydpi-v26/ic_launcher_round.xml', adaptive);
+  add('android/res/values/ic_launcher_background.xml', `<?xml version="1.0" encoding="utf-8"?>\n<resources>\n    <color name="ic_launcher_background">${state.fill.bottom.toUpperCase()}</color>\n</resources>\n`);
+
+  // Store listings and cross-platform frameworks (Expo, Capacitor, flutter_launcher_icons).
+  add('store/app-store-1024.png', await encodePNG(resize(ios, 1024)));
+  add('store/play-store-512.png', await encodePNG(resize(legacy, 512)));
+  add('store/android-adaptive-foreground-1024.png', await encodePNG(resize(layer, 1024)));
+  add('settings.json', settingsJSON() + '\n');
+  add('README.txt', [
+    `Icons for ${state.name}, made with App Icon Generator.`,
+    '',
+    'ios/AppIcon.appiconset   -> replace the AppIcon.appiconset folder inside your Assets.xcassets',
+    '                            (Flutter: ios/Runner/Assets.xcassets/AppIcon.appiconset)',
+    'android/res              -> merge into app/src/main/res (Flutter / React Native: android/app/src/main/res)',
+    '                            AndroidManifest.xml: android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"',
+    'store/                   -> App Store Connect (1024), Google Play Console (512), Expo adaptiveIcon.foregroundImage (1024)',
+    `                            Expo adaptiveIcon.backgroundColor: ${state.fill.bottom.toUpperCase()}`,
+    'settings.json            -> the editor settings used, to reproduce these icons',
+    '',
+  ].join('\n'));
+  return files;
+}
+
+$('download').addEventListener('click', async () => {
+  const btn = $('download'), status = $('status');
+  if (!window.CompressionStream) { status.textContent = 'This browser is too old to export (needs CompressionStream). Try a current Chrome, Safari or Firefox.'; return; }
+  btn.disabled = true; status.textContent = 'Building icons…';
+  try {
+    const blob = makeZip(await buildFiles());
+    const slug = (state.name || 'app').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob); a.download = `${slug}-icons.zip`;
+    document.body.append(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+    status.textContent = `Saved ${slug}-icons.zip`;
+  } catch (e) {
+    status.textContent = 'Export failed: ' + e.message;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+if (EMBEDDED_SRC.startsWith('data:')) loadImage(EMBEDDED_SRC, !state.fill);
+</script>
+</body>
+</html>
