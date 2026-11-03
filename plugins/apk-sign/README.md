@@ -4,6 +4,8 @@ Sign or re-sign an Android APK with **any** keystore, verify the result, and opt
 
 Use it whenever an APK needs a different signature: signing an unsigned build, replacing a debug or CI signature with your release key, or signing with a key provided by a third party.
 
+> **Not using Claude Code?** Go to [Option B](#option-b-without-claude-code). Run one script on macOS, Linux or Windows.
+
 ```
 app.apk  ──zipalign──▶  apksigner sign  ──▶  apksigner verify  ──▶  app-signed.apk  ──(optional)──▶  adb install
 ```

@@ -4,6 +4,8 @@ See your app icon on iOS and Android home screens, drag and resize it until it f
 
 Use it as a [Claude Code](https://claude.com/claude-code) skill that also installs the icons into your project, or just open the HTML page in your browser.
 
+> **Not using Claude Code?** Go to [Option B](#option-b-without-claude-code). Open one HTML file in your browser and download the icons. Nothing to install.
+
 ![Editor: the same icon tuned separately for iOS and Android, with the Android safe zone drawn as a dashed circle](docs/editor.png)
 
 ---
