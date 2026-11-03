@@ -11,8 +11,6 @@
 | [**app-icon-generator**](plugins/app-icon-generator) | Preview your app icon on iOS and Android home screens, adjust size and position, and generate every icon size: `AppIcon.appiconset`, Android mipmaps, adaptive icons. Installs them into Flutter, React Native, Expo or native projects. | `/app-icon` |
 | [**apk-sign**](plugins/apk-sign) | Sign or re-sign an Android APK with any keystore (`.jks`, `.p12`, `.pk8` + `.pem`), verify it, and install it with adb. macOS, Linux and Windows. | `/sign-apk` |
 
-![App icon generator: live iOS and Android home-screen previews](plugins/app-icon-generator/docs/previews.png)
-
 ---
 
 ## Install
